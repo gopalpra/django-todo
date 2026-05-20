@@ -22,5 +22,9 @@
     <members>User_Story_Name_Record_Page</members>
     <name>FlexiPage</name>
   </types>
+  <types>
+    <members>OAuth_Config__mdt</members>
+    <name>CustomObject</name>
+  </types>
   <version>64.0</version>
 </Package>
