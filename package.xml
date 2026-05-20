@@ -3,6 +3,7 @@
   <types>
     <members>GitHub_Connection__c</members>
     <members>User_Story_Name__c</members>
+    <members>Environment__c</members>
     <name>CustomObject</name>
   </types>
   <types>
