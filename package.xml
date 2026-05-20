@@ -2,6 +2,7 @@
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
   <types>
     <members>GitHub_Connection__c</members>
+    <members>User_Story_Name__c</members>
     <name>CustomObject</name>
   </types>
   <types>
@@ -15,6 +16,10 @@
   <types>
     <members>deploymentTool</members>
     <name>LightningComponentBundle</name>
+  </types>
+  <types>
+    <members>User_Story_Name_Record_Page</members>
+    <name>FlexiPage</name>
   </types>
   <version>64.0</version>
 </Package>
