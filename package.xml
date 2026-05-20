@@ -4,6 +4,8 @@
     <members>GitHub_Connection__c</members>
     <members>User_Story_Name__c</members>
     <members>Environment__c</members>
+    <members>Deployment_Log__c</members>
+    <members>Deployment_Component__c</members>
     <name>CustomObject</name>
   </types>
   <types>
