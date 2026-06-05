@@ -171,11 +171,11 @@ public without sharing class DeploymentToolCtrl {
                 return (String.isBlank(branch) || branch == 'null') ? 'main' : branch;
             }
         } catch (Exception e) {}
-        return 'main'; // fallback
+        return 'main';
     }
 
     // ═══════════════════════════════════════════════════════════
-    // GITHUB HTTP HELPERS — dynamic token
+    // GITHUB HTTP HELPERS
     // ═══════════════════════════════════════════════════════════
     private static HttpResponse githubGet(String accessToken, String path) {
         HttpRequest req = new HttpRequest();
@@ -259,85 +259,85 @@ public without sharing class DeploymentToolCtrl {
     // ═══════════════════════════════════════════════════════════
     // Refresh Access Token
     // ═══════════════════════════════════════════════════════════
-   @AuraEnabled
-public static Map<String, String> refreshAccessToken(String refreshToken, String orgType, String orgName) {
-    try {
-      List<OAuth_Config__mdt> configs = [
-    SELECT Client_Id__c, Client_Secret__c, Callback_Url__c
-    FROM OAuth_Config__mdt
-    WHERE App_Type__c = 'Salesforce'
-    AND DeveloperName = :orgName.capitalize()
-    LIMIT 1
-];
+    @AuraEnabled
+    public static Map<String, String> refreshAccessToken(String refreshToken, String orgType, String orgName) {
+        try {
+            List<OAuth_Config__mdt> configs = [
+                SELECT Client_Id__c, Client_Secret__c, Callback_Url__c
+                FROM OAuth_Config__mdt
+                WHERE App_Type__c = 'Salesforce'
+                AND DeveloperName = :orgName.capitalize()
+                LIMIT 1
+            ];
 
-if(configs.isEmpty()) {
-    configs = [
-        SELECT Client_Id__c, Client_Secret__c, Callback_Url__c
-        FROM OAuth_Config__mdt
-        WHERE DeveloperName = 'Default'
-        LIMIT 1
-    ];
-}
-
-OAuth_Config__mdt config = configs[0];
-        Boolean isSandbox     = (orgType != null && orgType.toLowerCase() == 'sandbox');
-        String  orgTypeLabel  = isSandbox ? 'Sandbox' : 'Production';
-        String  tokenEndpoint = isSandbox
-            ? 'https://test.salesforce.com/services/oauth2/token'
-            : 'https://login.salesforce.com/services/oauth2/token';
-
-        HttpRequest req = new HttpRequest();
-        req.setEndpoint(tokenEndpoint);
-        req.setMethod('POST');
-        req.setHeader('Content-Type', 'application/x-www-form-urlencoded');
-        req.setBody(
-            'grant_type=refresh_token'
-            + '&client_id='     + EncodingUtil.urlEncode(config.Client_Id__c,     'UTF-8')
-            + '&client_secret=' + EncodingUtil.urlEncode(config.Client_Secret__c, 'UTF-8')
-            + '&refresh_token=' + EncodingUtil.urlEncode(refreshToken,            'UTF-8')
-        );
-        req.setTimeout(TIMEOUT_MS);
-
-        HttpResponse res      = new Http().send(req);
-        String       respBody = res.getBody();
-
-        if (res.getStatusCode() != 200) {
-            String friendlyMsg;
-            if (respBody.contains('invalid_grant') || respBody.contains('expired')) {
-                friendlyMsg = '⚠️ ' + orgTypeLabel + ' org refresh token has either expired or been revoked.\n'
-                    + 'Please go to the Environments app and click the "Connect Org" button for this org to reconnect it.\n'
-                    + 'This will generate a fresh token.';
-            } else if (respBody.contains('invalid_client')) {
-                friendlyMsg = '⚠️ Connected App credentials are incorrect (' + orgTypeLabel + ').\n'
-                    + 'Please check the Client_Id and Client_Secret in OAuth_Config__mdt.';
-            } else if (respBody.contains('inactive_user') || respBody.contains('inactive_org')) {
-                friendlyMsg = '⚠️ ' + orgTypeLabel + ' org or user is inactive.\n'
-                    + 'Please contact the Salesforce admin and check the org/user status.';
-            } else {
-                friendlyMsg = 'Token refresh failed (' + res.getStatusCode() + ') for ' + orgTypeLabel + ' org: ' + respBody;
+            if (configs.isEmpty()) {
+                configs = [
+                    SELECT Client_Id__c, Client_Secret__c, Callback_Url__c
+                    FROM OAuth_Config__mdt
+                    WHERE DeveloperName = 'Default'
+                    LIMIT 1
+                ];
             }
-            throw createAuraException(friendlyMsg);
+
+            OAuth_Config__mdt config = configs[0];
+            Boolean isSandbox     = (orgType != null && orgType.toLowerCase() == 'sandbox');
+            String  orgTypeLabel  = isSandbox ? 'Sandbox' : 'Production';
+            String  tokenEndpoint = isSandbox
+                ? 'https://test.salesforce.com/services/oauth2/token'
+                : 'https://login.salesforce.com/services/oauth2/token';
+
+            HttpRequest req = new HttpRequest();
+            req.setEndpoint(tokenEndpoint);
+            req.setMethod('POST');
+            req.setHeader('Content-Type', 'application/x-www-form-urlencoded');
+            req.setBody(
+                'grant_type=refresh_token'
+                + '&client_id='     + EncodingUtil.urlEncode(config.Client_Id__c,     'UTF-8')
+                + '&client_secret=' + EncodingUtil.urlEncode(config.Client_Secret__c, 'UTF-8')
+                + '&refresh_token=' + EncodingUtil.urlEncode(refreshToken,            'UTF-8')
+            );
+            req.setTimeout(TIMEOUT_MS);
+
+            HttpResponse res      = new Http().send(req);
+            String       respBody = res.getBody();
+
+            if (res.getStatusCode() != 200) {
+                String friendlyMsg;
+                if (respBody.contains('invalid_grant') || respBody.contains('expired')) {
+                    friendlyMsg = '⚠️ ' + orgTypeLabel + ' org refresh token has either expired or been revoked.\n'
+                        + 'Please go to the Environments app and click the "Connect Org" button for this org to reconnect it.\n'
+                        + 'This will generate a fresh token.';
+                } else if (respBody.contains('invalid_client')) {
+                    friendlyMsg = '⚠️ Connected App credentials are incorrect (' + orgTypeLabel + ').\n'
+                        + 'Please check the Client_Id and Client_Secret in OAuth_Config__mdt.';
+                } else if (respBody.contains('inactive_user') || respBody.contains('inactive_org')) {
+                    friendlyMsg = '⚠️ ' + orgTypeLabel + ' org or user is inactive.\n'
+                        + 'Please contact the Salesforce admin and check the org/user status.';
+                } else {
+                    friendlyMsg = 'Token refresh failed (' + res.getStatusCode() + ') for ' + orgTypeLabel + ' org: ' + respBody;
+                }
+                throw createAuraException(friendlyMsg);
+            }
+
+            Map<String, Object> parsed      = (Map<String, Object>) JSON.deserializeUntyped(respBody);
+            String              accessToken = String.valueOf(parsed.get('access_token'));
+            String              instanceUrl = String.valueOf(parsed.get('instance_url'));
+
+            if (String.isBlank(accessToken) || accessToken == 'null')
+                throw createAuraException('⚠️ ' + orgTypeLabel + ' org access token is blank.\nPlease go to the Environments app and connect the org again.');
+            if (String.isBlank(instanceUrl) || instanceUrl == 'null')
+                throw createAuraException('⚠️ ' + orgTypeLabel + ' org instance URL is blank.\nGo to the Environments app and reconnect the org again.');
+
+            return new Map<String, String>{
+                'accessToken' => accessToken,
+                'instanceUrl' => instanceUrl
+            };
+        } catch (AuraHandledException e) {
+            throw e;
+        } catch (Exception e) {
+            throw createAuraException('refreshAccessToken: ' + e.getMessage());
         }
-
-        Map<String, Object> parsed      = (Map<String, Object>) JSON.deserializeUntyped(respBody);
-        String              accessToken = String.valueOf(parsed.get('access_token'));
-        String              instanceUrl = String.valueOf(parsed.get('instance_url'));
-
-        if (String.isBlank(accessToken) || accessToken == 'null')
-            throw createAuraException('⚠️ ' + orgTypeLabel + ' org access token is blank.\nPlease go to the Environments app and connect the org again.');
-        if (String.isBlank(instanceUrl) || instanceUrl == 'null')
-            throw createAuraException('⚠️ ' + orgTypeLabel + ' org instance URL is blank.\nGo to the Environments app and reconnect the org again.');
-
-        return new Map<String, String>{
-            'accessToken' => accessToken,
-            'instanceUrl' => instanceUrl
-        };
-    } catch (AuraHandledException e) {
-        throw e;
-    } catch (Exception e) {
-        throw createAuraException('refreshAccessToken: ' + e.getMessage());
     }
-}
 
     // ═══════════════════════════════════════════════════════════
     // Fetch components from dynamic org
@@ -430,7 +430,7 @@ OAuth_Config__mdt config = configs[0];
     }
 
     // ═══════════════════════════════════════════════════════════
-    // Dynamic SOAP Retrieve
+    // Dynamic SOAP Retrieve  
     // ═══════════════════════════════════════════════════════════
     @AuraEnabled
     public static String startRetrieveDynamic(
@@ -595,7 +595,7 @@ OAuth_Config__mdt config = configs[0];
     }
 
     // ═══════════════════════════════════════════════════════════
-    // GitHub: Get Main Branch SHA (dynamic default branch)
+    // GitHub: Get Main Branch SHA
     // ═══════════════════════════════════════════════════════════
     @AuraEnabled
     public static String getMainBranchSha(String userStoryId) {
@@ -621,7 +621,7 @@ OAuth_Config__mdt config = configs[0];
     }
 
     // ═══════════════════════════════════════════════════════════
-    // GitHub: Create Feature Branch (dynamic default branch)
+    // GitHub: Create Feature Branch
     // ═══════════════════════════════════════════════════════════
     @AuraEnabled
     public static String createFeatureBranch(String branchName, String sha, String userStoryId) {
@@ -642,10 +642,112 @@ OAuth_Config__mdt config = configs[0];
     }
 
     // ═══════════════════════════════════════════════════════════
-    // GitHub: Push Multiple Files (dynamic default branch)
+    // ✅ NEW — Get Existing Branch Name for User Story
+    // Returns the branch name from the latest commit of a User Story
+    // ═══════════════════════════════════════════════════════════
+    @AuraEnabled(cacheable=false)
+    public static String getExistingBranchForUserStory(String userStoryId) {
+        try {
+            List<Commit__c> commits = [
+    SELECT Branch_Name__c
+    FROM Commit__c
+    WHERE User_Story_Name__c = :userStoryId
+    AND Branch_Name__c != null
+    AND Status__c != 'Obsolete'
+    ORDER BY CreatedDate DESC
+    LIMIT 1
+];
+            if (commits.isEmpty()) return null;
+            return commits[0].Branch_Name__c;
+        } catch (Exception e) {
+            throw createAuraException('getExistingBranchForUserStory: ' + e.getMessage());
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // ✅ NEW — Delete Feature Branch + Close Open PR
+    // Called when user chooses "Create New Branch" in modal
     // ═══════════════════════════════════════════════════════════
     @AuraEnabled
-    public static Boolean pushMultipleFilesToGitHub(String branchName, String commitMessage, List<Map<String, String>> files, String userStoryId) {
+public static Map<String, Object> deleteFeatureBranchAndClosePR(String branchName, String userStoryId) {
+    try {
+        GitHub_Connection__c conn  = getConnectionFromUserStory(userStoryId);
+        String               owner = conn.Repo_Owner__c;
+        String               repo  = conn.Repo_Name__c;
+        String               token = conn.Access_Token__c;
+
+        Integer closedPrCount  = 0;
+        Boolean branchDeleted  = false;
+
+        // ── Step 1: Find & close any open PRs for this branch ───────
+        String encodedHead = EncodingUtil.urlEncode(owner + ':' + branchName, 'UTF-8');
+        HttpResponse prRes = githubGet(token,
+            repoPath(owner, repo, '/pulls?state=open&head=' + encodedHead + '&per_page=10'));
+        checkGitHubRateLimit(prRes, 'deleteFeatureBranchAndClosePR - list PRs');
+
+        if (prRes.getStatusCode() == 200) {
+            List<Object> prs = (List<Object>) JSON.deserializeUntyped(prRes.getBody());
+            for (Object prObj : prs) {
+                Map<String, Object> pr    = (Map<String, Object>) prObj;
+                Integer             prNum = (Integer) pr.get('number');
+                HttpResponse closeRes = githubPost(token, 'PATCH',
+                    repoPath(owner, repo, '/pulls/' + prNum),
+                    new Map<String, String>{ 'state' => 'closed' });
+                checkGitHubRateLimit(closeRes, 'deleteFeatureBranchAndClosePR - close PR #' + prNum);
+                if (closeRes.getStatusCode() == 200) closedPrCount++;
+            }
+        }
+
+        // ── Step 2: Delete the branch ────────────────────────────────
+        HttpRequest delReq = new HttpRequest();
+        delReq.setEndpoint(GITHUB_API_BASE + repoPath(owner, repo, '/git/refs/heads/' + branchName));
+        delReq.setMethod('DELETE');
+        delReq.setHeader('Authorization', 'Bearer ' + token);
+        delReq.setHeader('Accept', 'application/vnd.github+json');
+        delReq.setHeader('X-GitHub-Api-Version', '2022-11-28');
+        delReq.setTimeout(TIMEOUT_MS);
+        HttpResponse delRes = new Http().send(delReq);
+        checkGitHubRateLimit(delRes, 'deleteFeatureBranchAndClosePR - delete branch');
+
+        // 204 = deleted, 422 = branch didn't exist (both are fine)
+        branchDeleted = (delRes.getStatusCode() == 204 || delRes.getStatusCode() == 422);
+        if (!branchDeleted && delRes.getStatusCode() != 404) {
+            throw createAuraException(
+                'Branch deletion failed (' + delRes.getStatusCode() + '): ' + delRes.getBody()
+            );
+        }
+
+        // ── Step 3: ✅ Mark old Commit__c records as obsolete───
+        List<Commit__c> existingCommits = [
+            SELECT Id, Status__c
+            FROM Commit__c
+            WHERE User_Story_Name__c = :userStoryId
+            AND Status__c != 'Obsolete'
+        ];
+        if (!existingCommits.isEmpty()) {
+            for (Commit__c c : existingCommits) {
+                c.Status__c = 'Obsolete';
+            }
+            update existingCommits;
+        }
+
+        return new Map<String, Object>{
+            'branchDeleted'   => branchDeleted,
+            'closedPrCount'   => closedPrCount,
+            'obsoleteCommits' => existingCommits.size()
+        };
+
+    } catch (AuraHandledException e) {
+        throw e;
+    } catch (Exception e) {
+        throw createAuraException('deleteFeatureBranchAndClosePR: ' + e.getMessage());
+    }
+}
+    // ═══════════════════════════════════════════════════════════
+    // GitHub: Push Multiple Files
+    // ═══════════════════════════════════════════════════════════
+    @AuraEnabled
+    public static String pushMultipleFilesToGitHub(String branchName, String commitMessage, List<Map<String, String>> files, String userStoryId) {
         try {
             GitHub_Connection__c conn  = getConnectionFromUserStory(userStoryId);
             String               owner = conn.Repo_Owner__c;
@@ -662,7 +764,6 @@ OAuth_Config__mdt config = configs[0];
             String baseTreeSha = String.valueOf(
                 ((Map<String, Object>)((Map<String, Object>) JSON.deserializeUntyped(commitRes.getBody())).get('tree')).get('sha'));
 
-            // ── Batch blob creation ─────────────────────────
             List<Map<String, Object>>       treeNodes = new List<Map<String, Object>>();
             List<List<Map<String, String>>> batches   = new List<List<Map<String, String>>>();
             List<Map<String, String>>       current   = new List<Map<String, String>>();
@@ -698,7 +799,9 @@ OAuth_Config__mdt config = configs[0];
                 repoPath(owner, repo, '/git/refs/heads/' + branchName),
                 new Map<String, Object>{ 'sha' => newCommitSha });
             checkGitHubRateLimit(updateRefRes, 'Update Ref');
-            return true;
+
+            return newCommitSha;
+
         } catch (AuraHandledException e) {
             throw e;
         } catch (Exception e) {
@@ -707,7 +810,179 @@ OAuth_Config__mdt config = configs[0];
     }
 
     // ═══════════════════════════════════════════════════════════
-    // GitHub: Create Pull Request (dynamic base branch)
+    // ✅ UPDATED — Save Commit + Component Records (branchName added)
+    // ═══════════════════════════════════════════════════════════
+    @AuraEnabled
+public static String saveCommitAndComponentRecords(
+        String commitSha,
+        String commitMessage,
+        String branchName,
+        String userStoryId,
+        List<Map<String, String>> components) {
+    try {
+        if (String.isBlank(commitSha))   throw createAuraException('Commit SHA is blank');
+        if (String.isBlank(userStoryId)) throw createAuraException('User Story ID is blank');
+        if (components == null || components.isEmpty()) throw createAuraException('Components list is empty');
+
+        // ✅ Status = Set the new commit as Active
+        Commit__c commitRec = new Commit__c(
+            Commit_ID__c       = commitSha,
+            Commit_Message__c  = commitMessage,
+            Branch_Name__c     = branchName,
+            User_Story_Name__c = userStoryId,
+            Status__c          = 'Active'
+        );
+        insert commitRec;
+
+        List<String> componentNames = new List<String>();
+        for (Map<String, String> comp : components) {
+            componentNames.add(comp.get('name'));
+        }
+
+        List<Component__c> existingComponents = [
+            SELECT Id, Component_Name__c, Commit_ID__c, Metadata_Type__c
+            FROM Component__c
+            WHERE User_Story_Name__c = :userStoryId
+            AND Component_Name__c IN :componentNames
+        ];
+
+        Map<String, Component__c> existingMap = new Map<String, Component__c>();
+        for (Component__c ec : existingComponents) {
+            existingMap.put(ec.Component_Name__c, ec);
+        }
+
+        List<Component__c> toInsert = new List<Component__c>();
+        List<Component__c> toUpdate = new List<Component__c>();
+
+        for (Map<String, String> comp : components) {
+            String compName = comp.get('name');
+            String compType = comp.containsKey('metadataType') ? comp.get('metadataType') : '';
+
+            if (existingMap.containsKey(compName)) {
+                Component__c existing = existingMap.get(compName);
+                existing.Commit_ID__c     = commitSha;
+                existing.Metadata_Type__c = compType;
+                toUpdate.add(existing);
+            } else {
+                toInsert.add(new Component__c(
+                    Component_Name__c  = compName,
+                    Commit_ID__c       = commitSha,
+                    Metadata_Type__c   = compType,
+                    User_Story_Name__c = userStoryId
+                ));
+            }
+        }
+
+        if (!toInsert.isEmpty()) insert toInsert;
+        if (!toUpdate.isEmpty()) update toUpdate;
+
+        return commitRec.Id;
+
+    } catch (AuraHandledException e) {
+        throw e;
+    } catch (Exception e) {
+        throw createAuraException('saveCommitAndComponentRecords: ' + e.getMessage());
+    }
+}
+    // ═══════════════════════════════════════════════════════════
+    // ✅ NEW — Create or View PR for User Story
+    // ═══════════════════════════════════════════════════════════
+    @AuraEnabled(cacheable=false)
+    public static Map<String, Object> createPRForUserStory(String userStoryId) {
+        try {
+            List<Commit__c> commits = [
+                SELECT Branch_Name__c
+                FROM Commit__c
+                WHERE User_Story_Name__c = :userStoryId
+                AND Branch_Name__c != null
+                AND Status__c != 'Obsolete' 
+                ORDER BY CreatedDate DESC
+                LIMIT 1
+            ];
+
+            if (commits.isEmpty() || String.isBlank(commits[0].Branch_Name__c)) {
+                throw createAuraException(
+                    'No commit found. Please deploy using the Deployment Tool first.'
+                );
+            }
+
+            String branchName = commits[0].Branch_Name__c;
+            GitHub_Connection__c conn  = getConnectionFromUserStory(userStoryId);
+            String               owner = conn.Repo_Owner__c;
+            String               repo  = conn.Repo_Name__c;
+            String               token = conn.Access_Token__c;
+
+            HttpResponse res = githubGet(token,
+                repoPath(owner, repo,
+                    '/pulls?state=open&head=' +
+                    EncodingUtil.urlEncode(owner + ':' + branchName, 'UTF-8') +
+                    '&per_page=1'));
+            checkGitHubRateLimit(res, 'createPRForUserStory');
+
+            if (res.getStatusCode() == 200) {
+                List<Object> prs = (List<Object>) JSON.deserializeUntyped(res.getBody());
+                if (prs != null && !prs.isEmpty()) {
+                    Map<String, Object> pr = (Map<String, Object>) prs[0];
+                    return new Map<String, Object>{
+                        'url'   => String.valueOf(pr.get('html_url')),
+                        'isNew' => false
+                    };
+                }
+            }
+
+            String defaultBranch = getDefaultBranch(token, owner, repo);
+
+            String prTitle = '';
+            try {
+                User_Story_Name__c us = [
+                    SELECT Name, Title__c
+                    FROM User_Story_Name__c
+                    WHERE Id = :userStoryId
+                    LIMIT 1
+                ];
+                prTitle = String.isNotBlank(us.Title__c) ? us.Title__c : us.Name;
+            } catch (Exception ex) {
+                prTitle = '';
+            }
+
+            String compareUrl =
+                'https://github.com/' + owner + '/' + repo +
+                '/compare/' + defaultBranch + '...' +
+                EncodingUtil.urlEncode(branchName, 'UTF-8') +
+                '?expand=1' +
+                (String.isNotBlank(prTitle)
+                    ? '&title=' + EncodingUtil.urlEncode(prTitle, 'UTF-8')
+                    : '');
+
+            return new Map<String, Object>{
+                'url'   => compareUrl,
+                'isNew' => true
+            };
+
+        } catch (AuraHandledException e) {
+            throw e;
+        } catch (Exception e) {
+            throw createAuraException('createPRForUserStory: ' + e.getMessage());
+        }
+    }
+
+    @AuraEnabled(cacheable=false)
+    public static String getUserStoryName(String userStoryId) {
+        try {
+            User_Story_Name__c us = [
+                SELECT Name
+                FROM User_Story_Name__c
+                WHERE Id = :userStoryId
+                LIMIT 1
+            ];
+            return us.Name;
+        } catch (Exception e) {
+            throw createAuraException('getUserStoryName: ' + e.getMessage());
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // GitHub: Create Pull Request
     // ═══════════════════════════════════════════════════════════
     @AuraEnabled
     public static String createPullRequest(
@@ -792,7 +1067,7 @@ OAuth_Config__mdt config = configs[0];
     }
 
     // ═══════════════════════════════════════════════════════════
-    // ✅ FIXED — GitHub: Get Previous Commits (userStoryId dynamic)
+    // GitHub: Get Previous Commits
     // ═══════════════════════════════════════════════════════════
     @AuraEnabled
     public static List<Map<String, Object>> getPreviousCommits(String userStoryId) {
@@ -835,7 +1110,7 @@ OAuth_Config__mdt config = configs[0];
                 Map<String, Object> fileMap  = (Map<String, Object>) f;
                 String              filePath = String.valueOf(fileMap.get('filename'));
                 if (filePath == null || filePath.endsWith('package.xml')) continue;
-                String componentName = extractComponentName(filePath);
+                String componentName = extractComponentName(filePath);    
                 if (String.isNotBlank(componentName))
                     files.add(new Map<String, Object>{
                         'path' => filePath, 'name' => componentName,
@@ -847,7 +1122,7 @@ OAuth_Config__mdt config = configs[0];
     }
 
     // ═══════════════════════════════════════════════════════════
-    // ✅ FIXED — Save Deployment Log (userStoryId dynamic)
+    // Save Deployment Log
     // ═══════════════════════════════════════════════════════════
     @AuraEnabled
     public static String saveDeploymentLog(
@@ -878,7 +1153,7 @@ OAuth_Config__mdt config = configs[0];
                     Component_API_Name__c = comp.get('name'),
                     File_Path__c          = comp.get('filePath'),
                     Operation__c          = 'Deploy'
-                ));
+                ));      
             }
             insert comps;
             return log.Id;
@@ -890,7 +1165,7 @@ OAuth_Config__mdt config = configs[0];
     }
 
     // ═══════════════════════════════════════════════════════════
-    // ✅ FIXED — Sync Deployment Status (userStoryId dynamic)
+    // Sync Deployment Status
     // ═══════════════════════════════════════════════════════════
     @AuraEnabled
     public static String syncDeploymentStatus(String logId, String branchName, String userStoryId) {
@@ -900,7 +1175,7 @@ OAuth_Config__mdt config = configs[0];
             HttpResponse         res         = githubGet(conn.Access_Token__c,
                 repoPath(conn.Repo_Owner__c, conn.Repo_Name__c,
                     '/actions/runs?branch=' + EncodingUtil.urlEncode(branchName, 'UTF-8') + '&per_page=1'));
-            checkGitHubRateLimit(res, 'syncDeploymentStatus');
+            checkGitHubRateLimit(res, 'syncDeploymentStatus');            
 
             if (res.getStatusCode() == 200) {
                 Map<String, Object> parsed = (Map<String, Object>) JSON.deserializeUntyped(res.getBody());
@@ -926,122 +1201,6 @@ OAuth_Config__mdt config = configs[0];
     }
 
     // ═══════════════════════════════════════════════════════════
-    // Deploy to Target Org
-    // ═══════════════════════════════════════════════════════════
-    @AuraEnabled
-    public static String startDeployToTargetOrg(String zipBase64, String accessToken, String instanceUrl) {
-        try {
-            String soap =
-                '<?xml version="1.0" encoding="utf-8"?>' +
-                '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:met="http://soap.sforce.com/2006/04/metadata">' +
-                '<soapenv:Header><met:SessionHeader><met:sessionId>' + accessToken + '</met:sessionId></met:SessionHeader></soapenv:Header>' +
-                '<soapenv:Body><met:deploy>' +
-                '<met:ZipFile>' + zipBase64 + '</met:ZipFile>' +
-                '<met:DeployOptions>' +
-                '<met:allowMissingFiles>false</met:allowMissingFiles>' +
-                '<met:autoUpdatePackage>false</met:autoUpdatePackage>' +
-                '<met:checkOnly>false</met:checkOnly>' +
-                '<met:ignoreWarnings>true</met:ignoreWarnings>' +
-                '<met:performRetrieve>false</met:performRetrieve>' +
-                '<met:purgeOnDelete>false</met:purgeOnDelete>' +
-                '<met:rollbackOnError>true</met:rollbackOnError>' +
-                '<met:runAllTests>false</met:runAllTests>' +
-                '<met:singlePackage>true</met:singlePackage>' +
-                '</met:DeployOptions>' +
-                '</met:deploy></soapenv:Body></soapenv:Envelope>';
-
-            HttpRequest req = new HttpRequest();
-            req.setEndpoint(instanceUrl + '/services/Soap/m/' + API_VERSION);
-            req.setMethod('POST');
-            req.setHeader('Content-Type', 'text/xml; charset=UTF-8');
-            req.setHeader('SOAPAction', '""');
-            req.setBody(soap);
-            req.setTimeout(TIMEOUT_MS);
-
-            HttpResponse res = new Http().send(req);
-            if (res.getStatusCode() != 200) {
-                String fault = extractTagValue(res.getBody(), 'faultstring');
-                throw createAuraException('Deploy Failed: ' + (fault != null ? fault : res.getBody()));
-            }
-            String jobId = extractTagValue(res.getBody(), 'id');
-            if (String.isBlank(jobId)) throw createAuraException('Deploy job ID is blank.');
-            return jobId;
-        } catch (AuraHandledException e) {
-            throw e;
-        } catch (Exception e) {
-            throw createAuraException('startDeployToTargetOrg: ' + e.getMessage());
-        }
-    }
-
-    // ═══════════════════════════════════════════════════════════
-    // Check Deploy Status
-    // ═══════════════════════════════════════════════════════════
-    @AuraEnabled
-    public static Map<String, Object> checkDeployStatus(String jobId, String accessToken, String instanceUrl) {
-        try {
-            String soap =
-                '<?xml version="1.0" encoding="utf-8"?>' +
-                '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:met="http://soap.sforce.com/2006/04/metadata">' +
-                '<soapenv:Header><met:SessionHeader><met:sessionId>' + accessToken + '</met:sessionId></met:SessionHeader></soapenv:Header>' +
-                '<soapenv:Body><met:checkDeployStatus>' +
-                '<met:asyncProcessId>' + jobId + '</met:asyncProcessId>' +
-                '<met:includeDetails>true</met:includeDetails>' +
-                '</met:checkDeployStatus></soapenv:Body></soapenv:Envelope>';
-
-            HttpRequest req = new HttpRequest();
-            req.setEndpoint(instanceUrl + '/services/Soap/m/' + API_VERSION);
-            req.setMethod('POST');
-            req.setHeader('Content-Type', 'text/xml; charset=UTF-8');
-            req.setHeader('SOAPAction', '""');
-            req.setBody(soap);
-            req.setTimeout(TIMEOUT_MS);
-
-            HttpResponse res  = new Http().send(req);
-            String       body = res.getBody();
-            if (res.getStatusCode() != 200) {
-                String fault = extractTagValue(body, 'faultstring');
-                throw createAuraException('checkDeployStatus Error: ' + (fault != null ? fault : body));
-            }
-
-            String  status   = extractTagValue(body, 'status');
-            Boolean done     = status == 'Succeeded' || status == 'Failed' || status == 'Canceled';
-            String  errorMsg = '';
-
-            if (status == 'Failed') {
-                String problem  = extractTagValue(body, 'problem');
-                String fileName = extractTagValue(body, 'fileName');
-                if (String.isNotBlank(problem)) {
-                    errorMsg = (String.isNotBlank(fileName) ? fileName + ': ' : '') + problem;
-                } else {
-                    errorMsg = extractTagValue(body, 'errorMessage');
-                    if (String.isBlank(errorMsg)) errorMsg = 'Deploy failed. Check target org logs.';
-                }
-            }
-
-            Integer numberComponentsDeployed = 0;
-            Integer numberComponentsTotal    = 0;
-            try {
-                String deployedStr = extractTagValue(body, 'numberComponentsDeployed');
-                String totalStr    = extractTagValue(body, 'numberComponentsTotal');
-                if (String.isNotBlank(deployedStr)) numberComponentsDeployed = Integer.valueOf(deployedStr);
-                if (String.isNotBlank(totalStr))    numberComponentsTotal    = Integer.valueOf(totalStr);
-            } catch (Exception ex) {}
-
-            return new Map<String, Object>{
-                'status'                   => status,
-                'done'                     => done,
-                'errorMessage'             => errorMsg,
-                'numberComponentsDeployed' => numberComponentsDeployed,
-                'numberComponentsTotal'    => numberComponentsTotal
-            };
-        } catch (AuraHandledException e) {
-            throw e;
-        } catch (Exception e) {
-            throw createAuraException('checkDeployStatus: ' + e.getMessage());
-        }
-    }
-
-    // ═══════════════════════════════════════════════════════════
     // UTILITY METHODS
     // ═══════════════════════════════════════════════════════════
     private static HttpResponse dynamicGet(String instanceUrl, String accessToken, String path) {
@@ -1052,7 +1211,7 @@ OAuth_Config__mdt config = configs[0];
         req.setHeader('Content-Type', 'application/json');
         req.setTimeout(TIMEOUT_MS);
         return new Http().send(req);
-    }
+    }   
 
     private static AuraHandledException createAuraException(String message) {
         AuraHandledException e = new AuraHandledException(message);
